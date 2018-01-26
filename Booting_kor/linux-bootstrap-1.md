@@ -304,7 +304,7 @@ _start:
 .bsdata : { *(.bsdata) }
 ```
 
-The kernel setup entry point is:
+커널 setup의 진입점은 다음과 같다:
 
 ```assembly
     .globl _start
@@ -317,9 +317,9 @@ _start:
     //
 ```
 
-Here we can see a `jmp` instruction opcode (`0xeb`) that jumps to the `start_of_setup-1f` point. In `Nf` notation, `2f`, for example, refers to the local label `2:`; in our case, it is the label `1` that is present right after the jump, and it contains the rest of the setup [header](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/Documentation/x86/boot.txt#L156). Right after the setup header, we see the `.entrytext` section, which starts at the `start_of_setup` label.
+여기서 우린 `jmp`명령어 opcode인 (`0xeb`)를 불 수 있다. `start_of_setup-1f` 지점으로 점프한다. 여기서 `Nf` 표기법은 로컬 라벨 `N:`지점을 의미한다; 방금의 경우 점프 바로다음에 있는 라벨 `1`을 의미하며 setup [header](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/Documentation/x86/boot.txt#L156)의 나머지부분이 존재한다. Setup header 다음은, 우리가 방금 점프하여 온 `start_of_setup` label이 보이며 `.entrytext`섹션을 확인 할 수 있다. 
 
-This is the first code that actually runs (aside from the previous jump instructions, of course). After the kernel setup part receives control from the bootloader, the first `jmp` instruction is located at the `0x200` offset from the start of the kernel real mode, i.e., after the first 512 bytes. This can be seen in both the Linux kernel boot protocol and the grub2 source code:
+여기가 진짜 첫 코드가 실행되는 부분이다(이전의 jump명령어는 제외하고). Bootloader로부터 kernel setup 파트가 제어를 넘겨받고, `0x200` offset만큼 떨어진 `jmp` 명령어를 실행한다. 이것은 Linux 커널 boot protocol과 grub2 소스코드에서 모두 볼 수 있다:
 
 ```C
 segment = grub_linux_real_target >> 4;
@@ -327,28 +327,28 @@ state.gs = state.fs = state.es = state.ds = state.ss = segment;
 state.cs = segment + 0x20;
 ```
 
-This means that segment registers will have the following values after kernel setup starts:
+이 코드는 segment 레지스터들이 커널 setup이 시작하고 다음과 같은 값을 갖는다는것을 의미한다:
 
 ```
 gs = fs = es = ds = ss = 0x10000
 cs = 0x10200
 ```
 
-In my case, the kernel is loaded at `0x10000` address.
+나의 경우, 커널은 `0x10000` 주소에 로드되었다.
 
-After the jump to `start_of_setup`, the kernel needs to do the following:
+`start_of_setup`으로 점프한 이후, 커널은 다음작업들을 해야한다:
 
-* Make sure that all segment register values are equal
-* Set up a correct stack, if needed
-* Set up [bss](https://en.wikipedia.org/wiki/.bss)
-* Jump to the C code in [main.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/main.c)
+* 모든 세그멘트 레지스터들이 같은 값을 갖도록 확인
+* 만약 필요하다면, Stack을 정확하게 구축
+* [BSS](https://en.wikipedia.org/wiki/.bss)구축
+* C코드의 [main.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/main.c)로 점프
 
-Let's look at the implementation.
+구현을 살펴보자.
 
-Aligning the Segment Registers 
+Segment 레지스터들을 정렬
 --------------------------------------------------------------------------------
 
-First of all, the kernel ensures that the `ds` and `es` segment registers point to the same address. Next, it clears the direction flag using the `cld` instruction:
+첫번째로, 커널은 `ds` 와 `es` segment 레지스터들이 같은 주소를 가리키도록 한다. 다음, `cld` 명령어를 통해 direction flag를 클리어한다.
 
 ```assembly
     movw    %ds, %ax
@@ -356,7 +356,7 @@ First of all, the kernel ensures that the `ds` and `es` segment registers point 
     cld
 ```
 
-As I wrote earlier, `grub2` loads kernel setup code at address `0x10000` by default and `cs` at `0x10200` because execution doesn't start from the start of file, but from the jump here:
+이전에 써놨듯이, `grub2`는 kernel setup 코드를 기본값으로 `0x10000`주소에 로드하고, `cs`에 `0x10200`을 넣는다. 왜냐하면 실행이 파일의 시작부분이아닌 다음지점(0x200 offset)에서 시작하기 때문이다:
 
 ```assembly
 _start:
@@ -364,7 +364,7 @@ _start:
     .byte start_of_setup-1f
 ```
 
-which is at a `512` byte offset from [4d 5a](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/header.S#L46). We also need to align `cs` from `0x10200` to `0x10000`, as well as all other segment registers. After that, we set up the stack:
+[4d 5a](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/header.S#L46)로부터 512바이트만큼 떨어져있다. 다른 segment register와 마찬가지로 `cs` 또한 `0x10200`에서 `0x10000`으로 정렬해야 한다. 그후로 스택을 구축한다:
 
 ```assembly
     pushw   %ds
@@ -372,12 +372,12 @@ which is at a `512` byte offset from [4d 5a](https://github.com/torvalds/linux/b
     lretw
 ```
 
-which pushes the value of `ds` to the stack, followed by the address of the [6](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/header.S#L494) label and executes the `lretw` instruction. When the `lretw` instruction is called, it loads the address of label `6` into the [instruction pointer](https://en.wikipedia.org/wiki/Program_counter) register and loads `cs` with the value of `ds`. Afterward, `ds` and `cs` will have the same values.
+`ds`값을 스택에 push한뒤, [6](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/header.S#L494)라벨의 주소도 같이 push한다. 그후 `lretw`명령어를 사용해 [instruction pointer](https://en.wikipedia.org/wiki/Program_counter)에 라벨 `6`의 주소를 넣고, `cs`에 `ds`의 값을 넣는다. 결국 `ds`와 `cs`의 값이 같아진다.
 
-Stack Setup
+스택 구축
 --------------------------------------------------------------------------------
 
-Almost all of the setup code is in preparation for the C language environment in real mode. The next [step](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/header.S#L569) is checking the `ss` register value and making a correct stack if `ss` is wrong:
+거의 모든 setup코드는 real mode에서 C언어 환경을 위한 준비라고 볼 수 있다. 다음 [단계](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/header.S#L569)는 `ss` 레지스터를 확인해서, `ss` 가 틀렸다면 바로잡아 스택을 만드는 것 이다.
 
 ```assembly
     movw    %ss, %dx
@@ -386,15 +386,15 @@ Almost all of the setup code is in preparation for the C language environment in
     je      2f
 ```
 
-This can lead to 3 different scenarios:
+이것은 세가지 시나리오가 생긴다:
 
-* `ss` has a valid value `0x1000` (as do all the other segment registers beside `cs`)
-* `ss` is invalid and the `CAN_USE_HEAP` flag is set     (see below)
-* `ss` is invalid and the `CAN_USE_HEAP` flag is not set (see below)
+* `ss` 가 정확한 값 `0x10000`을 가진다. (다른 segment register과 마찬가지로)
+* `ss` 가 정확하지 않고 `CAN_USE_HEAP` 플래그가 set 되어있다.     (하단 참고)
+* `ss` 가 정확하지 않고 `CAN_USE_HEAP` 플래그가 set 되어있지 않다.(하단 참고)
 
-Let's look at all three of these scenarios in turn:
+세 시나리오를 살펴보도록 하자:
 
-* `ss` has a correct address (`0x1000`). In this case, we go to label [2](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/header.S#L584):
+* `ss` has a correct address (`0x10000`). In this case, we go to label [2](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/header.S#L584):
 
 ```assembly
 2:  andw    $~3, %dx
@@ -464,7 +464,7 @@ The BSS section is used to store statically allocated, uninitialized data. Linux
     rep; stosl
 ```
 
-First, the [__bss_start](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/setup.ld#L47) address is moved into `di`. Next, the `_end + 3` address (+3 - aligns to 4 bytes) is moved into `cx`. The `eax` register is cleared (using a `xor` instruction), and the bss section size (`cx`-`di`) is calculated and put into `cx`. Then, `cx` is divided by four (the size of a 'word'), and the `stosl` instruction is used repeatedly, storing the value of `eax` (zero) into the address pointed to by `di`, automatically increasing `di` by four, repeating until `cx` reaches zero). The net effect of this code is that zeros are written through all words in memory from `__bss_start` to `_end`:
+First, the [__bss\_start](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/setup.ld#L47) address is moved into `di`. Next, the `\_end + 3` address (+3 - aligns to 4 bytes) is moved into `cx`. The `eax` register is cleared (using a `xor` instruction), and the bss section size (`cx`-`di`) is calculated and put into `cx`. Then, `cx` is divided by four (the size of a 'word'), and the `stosl` instruction is used repeatedly, storing the value of `eax` (zero) into the address pointed to by `di`, automatically increasing `di` by four, repeating until `cx` reaches zero). The net effect of this code is that zeros are written through all words in memory from `__bss_start` to `_end`:
 
 ![bss](http://oi59.tinypic.com/29m2eyr.jpg)
 
