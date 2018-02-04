@@ -388,13 +388,13 @@ _start:
 
 이것은 세가지 시나리오가 생긴다:
 
-* `ss` 가 정확한 값 `0x10000`을 가진다. (다른 segment register과 마찬가지로)
+* `ss` 가 정확한 값 `0x1000`을 가진다. (다른 segment register과 마찬가지로)
 * `ss` 가 정확하지 않고 `CAN_USE_HEAP` 플래그가 set 되어있다.     (하단 참고)
 * `ss` 가 정확하지 않고 `CAN_USE_HEAP` 플래그가 set 되어있지 않다.(하단 참고)
 
 세 시나리오를 살펴보도록 하자:
 
-* `ss`가 정확한 주소(`0x10000`)이다. 이경우 우리는 라벨[2](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/header.S#L584)로 간다:
+* `ss`가 정확한 값(`0x1000`)이다. 이경우 우리는 라벨[2](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/header.S#L584)로 간다:
 
 ```assembly
 2:  andw    $~3, %dx
