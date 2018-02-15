@@ -56,7 +56,7 @@ lgdt gdt
  * Global descriptor table의 크기 (16 bit);
  * Global descriptor table의 주소 (32 bit).
 
-As mentioned above the GDT contains `segment descriptors` which describe memory segments.  Each descriptor is 64-bits in size. The general scheme of a descriptor is:
+위에서 언급했듯이 GDT는 메모리 segments를 나타내는 `segment descriptor`들을 갖고있는 테이블이다. 각 descriptor들은 64-bit이며 구조는 다음과 같다:
 
 ```
  63         56         51   48    45           39        32 
@@ -74,27 +74,27 @@ As mentioned above the GDT contains `segment descriptors` which describe memory 
 | --- |
 ```
 
-Don't worry, I know it looks a little scary after real mode, but it's easy. For example LIMIT 15:0 means that bits 0-15 of Limit are located at the beginning of the Descriptor. The rest of it is in LIMIT 19:16, which is located at bits 48-51 of the Descriptor. So, the size of Limit is 0-19 i.e 20-bits. Let's take a closer look at it:
+Real mode에 비해서 복잡해보이지만, 알고보면 쉬우니 걱정하지마라. 예를들어 descriptor 시작점에있는 LIMIT 15:0의 의미는 Limit의 0~15까지의 bit를 의미한다. 나머지 LIMIT은 descriptor의 48-51bit에 있는 LIMIT 19:16에 존재한다. 따라서 Limit의 크기는 0:19 즉, 20bit이 된다. 더 자세히 살펴보자:
 
-1. Limit[20-bits] is split between bits 0-15 and 48-51. It defines the `length_of_segment - 1`. It depends on the `G`(Granularity) bit.
+1. Limit[20-bit]는 비트범위 0-15와 48-51로 나뉘어져 있다. Limit은 (세그먼트의 크기-1)을 나타내는데, 계산은 `G`(Granularity) bit에 따라서 달라진다.
 
-  * if `G` (bit 55) is 0 and the segment limit is 0, the size of the segment is 1 Byte
-  * if `G` is 1 and the segment limit is 0, the size of the segment is 4096 Bytes
-  * if `G` is 0 and the segment limit is 0xfffff, the size of the segment is 1 Megabyte
-  * if `G` is 1 and the segment limit is 0xfffff, the size of the segment is 4 Gigabytes
+  * `G` (bit 55) 가 0이고 segment limit이  0이면, segment의 크기는 1 Byte이다
+  * `G` 가 1이고 segment limit이 0이면, segment의 크기는 4096 Byte이다
+  * `G` 가 0이고 segment limit이 0xfffff이면, segment의 크기는 1 Megabyte이다
+  * `G` 가 1이고 segment limit이 0xfffff이면, segment의 크기는 4 Gigabyte이다
 
-  So, what this means is
-  * if G is 0, Limit is interpreted in terms of 1 Byte and the maximum size of the segment can be 1 Megabyte.
-  * if G is 1, Limit is interpreted in terms of 4096 Bytes = 4 KBytes = 1 Page and the maximum size of the segment can be 4 Gigabytes. Actually, when G is 1, the value of Limit is shifted to the left by 12 bits. So, 20 bits + 12 bits = 32 bits and 2<sup>32</sup> = 4 Gigabytes.
+  자, 해석을 해보면
+  * G가 0일땐, Limit의 단위는 1 Byte 이고 segment의 최대 크기는 1 Megabyte이다.
+  * G가 1일떈, Limit의 단위는 4096 Bytes = 4 KBytes = 1 Page 이고 segment의 최대 크기는 4 Gigabyte 이다. 실제론, G가 1일때, Limit 은 왼쪽으로 12만큼 shift된다. 즉 20 bit + 12 bit = 32 bit이 되고 2<sup>32</sup> = 4 Gigabyte가 된다.
 
-2. Base[32-bits] is split between bits 16-31, 32-39 and 56-63. It defines the physical address of the segment's starting location.
+2. Base[32-bit]는 비트범위 16-31, 32-39, 56-63로 나뉘어져 있다. Base는 segment의 시작 물리주소를 나타낸다.
 
-3. Type/Attribute[5-bits] is represented by bits 40-44. It defines the type of segment and how it can be accessed.
-  * The `S` flag at bit 44 specifies the descriptor type. If `S` is 0 then this segment is a system segment, whereas if `S` is 1 then this is a code or data segment (Stack segments are data segments which must be read/write segments).
+3. Type/Attribute[5-bits]는 비트범위 40-44에 있다. Segment의 타입과 접근제어를 정의한다.
+  * `S` flag는 비트 44에 있으며, descriptor의 타입을 정의한다. `S`가 0이면 segment는 system segment이다, `S`가 1이면 code나 data segment이다. (Stack segment는 read/write가 가능한 data segment이다).
 
-To determine if the segment is a code or data segment, we can check its Ex(bit 43) Attribute (marked as 0 in the above diagram). If it is 0, then the segment is a Data segment, otherwise, it is a code segment.
+Segment가 code인지 data인지 판별하기 위해선, Ex(43 bit)를 확인해 봐야한다. 0일경우 data, 1일경우 code segment이다.
 
-A segment can be of one of the following types:
+Segment는 다음타입들중 하나가 된다:
 
 ```
 | Type Field                  | Descriptor Type | Description                        |
@@ -120,24 +120,24 @@ A segment can be of one of the following types:
 | 15          1    1    1   1 | Code            | Execute/Read, conforming, accessed |
 ```
 
-As we can see the first bit(bit 43) is `0` for a _data_ segment and `1` for a _code_ segment. The next three bits (40, 41, 42) are either `EWA`(*E*xpansion *W*ritable *A*ccessible) or CRA(*C*onforming *R*eadable *A*ccessible).
-  * if E(bit 42) is 0, expand up, otherwise, expand down. Read more [here](http://www.sudleyplace.com/dpmione/expanddown.html).
-  * if W(bit 41)(for Data Segments) is 1, write access is allowed, and if it is 0, the segment is read-only. Note that read access is always allowed on data segments.
-  * A(bit 40) controls whether the segment can be accessed by the processor or not.
-  * C(bit 43) is the conforming bit(for code selectors). If C is 1, the segment code can be executed from a lower level privilege (e.g. user) level. If C is 0, it can only be executed from the same privilege level.
-  * R(bit 41) controls read access to code segments; when it is 1, the segment can be read from. Write access is never granted for code segments.
+위에서 봤듯이 첫번째 비트(43 bit)이 `0`이면 _data_ segment이고 `1`이면 _code_ segment이다. 다음 세비트(40, 41, 42)는 `EWA`(*E*xpansion *W*ritable *A*ccessible) 혹은 CRA(*C*onforming *R*eadable *A*ccessible)이다.
+  * E(bit 42)가 0이면, expand up이고, 아니면, expand down이다. 자세한 정보는 [여기서](http://www.sudleyplace.com/dpmione/expanddown.html).
+  * W(bit 41)(Data Segment 용)이 1이면, 쓰기 권한이 추가된다, 0일경우, segment는 read-only이다. Data segment에서 읽기 권한은 항상 부여된다는 것에 주목하라.
+  * A(bit 40)는 segment가 processor에 의해 접근 될 수 있는지 없는지를 나타낸다.
+  * C(bit 43)는 conforming bit(code selector 용)이다. C가 1이면, segment code는 하위 privilege 레벨(eg. 유저)에서 실행 될 수 있다. 만약 C가 0 이면, 같은 previlege 레벨에서만 실행 될 수 있다.
+  * R(bit 41) 은 코드세그먼트의 읽기 권한이다; 1일 경우 해당 코드 세그먼트를 읽을 수 있다, 코드세그먼트에서 쓰기 권한은 절대 허락되지 않는다.
 
-4. DPL[2-bits] (Descriptor Privilege Level) comprises the bits 45-46. It defines the privilege level of the segment. It can be 0-3 where 0 is the most privileged level.
+4. DPL[2-bits] (Descriptor Privilege Level) 은 45-46bit 에 있다. 해당 세그먼트의 previlege level을 나타낸다. Previlege level은 0-3까지 이며 3이 가장 권한이 높다.
 
-5. The P flag(bit 47) indicates if the segment is present in memory or not. If P is 0, the segment will be presented as _invalid_ and the processor will refuse to read from this segment.
+5. P flag(bit 47) 는 세그먼트가 메모리에 올라와있는지를 판단한다. 만약 0이면, 세그먼트는 _invalid_로 표시되며 프로세서는 해당 세그먼트 읽기를 거부할 것이다.
 
-6. AVL flag(bit 52) - Available and reserved bits. It is ignored in Linux.
+6. AVL flag(bit 52) - Available and reserved bits. Linux에선 무시된다.
 
-7. The L flag(bit 53) indicates whether a code segment contains native 64-bit code. If it is set, then the code segment executes in 64-bit mode.
+7. The L flag(bit 53) 코드 세그먼트가 64bit code를 포함하는지 알려준다. Set되어있다면 코드 세그먼트는 64-bit 모드에서 동작한다.
 
-8. The D/B flag(bit 54)  (Default/Big flag) represents the operand size i.e 16/32 bits. If set, operand size is 32 bits. Otherwise, it is 16 bits.
+8. The D/B flag(bit 54)  (Default/Big flag) 는 오퍼랜드(피연산자)의 사이즈를 결정한다. 1이라면 32bit, 아니라면 16bit이다.
 
-Segment registers contain segment selectors as in real mode. However, in protected mode, a segment selector is handled differently. Each Segment Descriptor has an associated Segment Selector which is a 16-bit structure:
+세그먼트 레지스터(eg. cs,ds)들은 real mode와 마찬가지로 segment selector를 갖는다. 다만 protected mode에선 다르게 동작한다. 각 segment descriptor들은 대응되는 16-bit 구조 segment selector들을 갖고 있다.
 
 ```
  15             3 2  1     0
@@ -146,42 +146,42 @@ Segment registers contain segment selectors as in real mode. However, in protect
 | ----- |
 ```
 
-Where,
-* **Index** stores the index number of the descriptor in the GDT.
-* **TI**(Table Indicator) indicates where to search for the descriptor. If it is 0 then the descriptor is searched for in the Global Descriptor Table(GDT). Otherwise, it will be searched for in the Local Descriptor Table(LDT).
-* And **RPL** contains the Requester's Privilege Level.
+살펴보면,
+* **Index** 는 GDT에서 descriptor의 인덱스를 나타낸다.
+* **TI**(Table Indicator) 는 어디서 descriptor를 찾을지를 나타낸다. 0이라면 GDT를 살펴보고 아니라면 LDT(Local Descriptor Table)을 살펴본다.
+* And **RPL** 는 요청자의 prevelige level을 나타낸다..
 
-Every segment register has a visible and a hidden part.
-* Visible - The Segment Selector is stored here.
-* Hidden -  The Segment Descriptor (which contains the base, limit, attributes & flags) is stored here.
+모든 segment register는 Visible 부분과 Hidden 부분으로 나뉜다.
+* Visible - Segment Selector가 여기 저장된다.
+* Hidden -  Segment Descriptor (base, limit, attributes & flags등 으로 구성) 이 여기 저장된다.
 
-The following steps are needed to get a physical address in protected mode:
+Protected mode에서 물리주소를 얻기 위해 다음과정을 거친다:
 
-* The segment selector must be loaded in one of the segment registers.
-* The CPU tries to find a segment descriptor at the offset `GDT address + Index` from the selector and then loads the descriptor into the *hidden* part of the segment register.
-* If paging is disabled, the linear address of the segment, or its physical address, is given by the formula: Base address (found in the descriptor obtained in the previous step) + Offset.
+* segment selector가 segment register에 로드 된다.
+* CPU는 segment selector의 `GDT 주소 + Index`오프셋을 통해 segment descriptor를 찾고 segment register의 hidden부분에 descriptor를 로드한다.
+* Paging이 꺼져있다면, segment의 물리주소는 다음 공식으로 구해진다: Base address (전 단계의 descriptor에서 구한 Base주소) + Offset.
 
-Schematically it will look like this:
+도식화하면 다음과 같다:
 
 ![linear address](http://oi62.tinypic.com/2yo369v.jpg)
 
-The algorithm for the transition from real mode into protected mode is:
+Real mode에서 protected mode로의 전환 알고리즘은 다음과 같다:
 
-* Disable interrupts
-* Describe and load the GDT with the `lgdt` instruction
-* Set the PE (Protection Enable) bit in CR0 (Control Register 0)
-* Jump to protected mode code
+* 인터럽트 끄기
+* GDT를 `lgdt`명령어로 로드
+* CR0(Control Register 0)의 PE (Protection Enable)를 1로 설정
+* Protected mode code로 점프
 
-We will see the complete transition to protected mode in the linux kernel in the next part, but before we can move to protected mode, we need to do some more preparations.
+다음파트에서 우리는 linux커널이 protected mode로 점프하는 전체 과정을 볼 것이다, 그전에 우리는 준비과정을 살펴보아야한다.
 
-Let's look at [arch/x86/boot/main.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/main.c). We can see some routines there which perform keyboard initialization, heap initialization, etc... Let's take a look.
+[arch/x86/boot/main.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/main.c)를 보면 키보드 초기화, heap 초기화 등등이 보인다. 자세히 살펴보자.
 
-Copying boot parameters into the "zeropage"
+"zeropage"로 부트 파라미터 복사
 --------------------------------------------------------------------------------
 
-We will start from the `main` routine in "main.c". The first function which is called in `main` is [`copy_boot_params(void)`](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/main.c#L30). It copies the kernel setup header into the corresponding field of the `boot_params` structure which is defined in the file [arch/x86/include/uapi/asm/bootparam.h](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/include/uapi/asm/bootparam.h#L113).
+"main.c"의 `main`루틴에서 시작해보자. `main`에서 제일 처음 불리는 함수는 [`copy_boot_params(void)`](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/main.c#L30)이다. 이 함수는 [arch/x86/include/uapi/asm/bootparam.h](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/include/uapi/asm/bootparam.h#L113)에 정의 되어 있는 `boot_params`구조에 상응하는 필드에 kernel setup 헤더를 복사한다.
 
-The `boot_params` structure contains the `struct setup_header hdr` field. This structure contains the same fields as defined in the [linux boot protocol](https://www.kernel.org/doc/Documentation/x86/boot.txt) and is filled by the boot loader and also at kernel compile/build time. `copy_boot_params` does two things:
+`boot_params` 구조에는 `struct setup_header hdr` 필드가 있다. 이구조에는 [linux boot protocol](https://www.kernel.org/doc/Documentation/x86/boot.txt)에 정의된것가 동일한 필드가 존재하고 kernel compile/build time에 부트로더에 의해 채워진다. `copy_boot_params` 은 두가지 일을 한다:
 
 1. It copies `hdr` from [header.S](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/header.S#L281) to the `boot_params` structure in `setup_header` field
 
@@ -225,7 +225,7 @@ So,
 Console initialization
 --------------------------------------------------------------------------------
 
-After `hdr` is copied into `boot_params.hdr`, the next step is to initialize the console by calling the `console_init` function,  defined in [arch/x86/boot/early_serial_console.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/early_serial_console.c).
+After `hdr` is copied into `boot_params.hdr`, the next step is to initialize the console by calling the `console_init` function,  defined in [lrch/x86/boot/early_serial_console.c](https://github.com/torvalds/linux/blob/16f73eb02d7e1765ccab3d2018e0bd98eb93d973/arch/x86/boot/early_serial_console.c).
 
 It tries to find the `earlyprintk` option in the command line and if the search was successful, it parses the port address and baud rate of the serial port and initializes the serial port. The value of the `earlyprintk` command line option can be one of these:
 
