@@ -117,3 +117,6 @@ Thank you to all contributors:
 * [Gabriela Moldovan](https://github.com/gabi-250)
 * [kuritonasu](https://github.com/kuritonasu/)
 * [Miles Frain](https://github.com/milesfrain)
+* [Horace Heaven](https://github.com/horaceheaven)
+* [Miha Zidar](https://github.com/zidarsk8)
+* [Ivan Kovnatsky](https://github.com/sevenfourk)
